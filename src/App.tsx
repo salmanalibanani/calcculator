@@ -1,4 +1,6 @@
 import './App.css';
+import React, {useState, useEffect} from 'react';
+
 import { CurrencyDropdown } from './components/CurrencyDropdown';
 import { useFormik } from 'formik';
 import { Button, FormLabel, TextField } from '@material-ui/core';
@@ -14,15 +16,74 @@ interface RateRequest {
   showResults: boolean;
   rate: number;
 }
-function App() {
-  
 
+interface RateRequestResult {
+  rate: number;
+  currencyPair: string;
+  showResults: boolean;
+}
+
+
+async function getRates(clientBuyCurrency: string, clientSellCurrency:string, amount:number) : Promise<RateRequestResult> {
+
+  const result: RateRequestResult = {
+      showResults: false,
+      rate: 0,
+      currencyPair: ''
+    }
+
+    var r = await axios.get(`https://wnvgqqihv6.execute-api.ap-southeast-2.amazonaws.com/Public/public/rates?Buy=${clientBuyCurrency}&Sell=${clientSellCurrency}&Amount=${amount}&Fixed=sell`);
+
+    if (r.data.clientRate) {
+      result.showResults = true;
+      result.rate = r.data.midMarketRate;
+      result.currencyPair = r.data.currencyPair;
+
+      console.log("results fetched " + result.rate);
+    }
+    else {
+      console.log('Handle exception here.');
+    }
+
+  return result;
+}
+
+
+function App() {
+
+  const [rates, setRates] = React.useState<RateRequestResult>({rate: 0, currencyPair:'', showResults:false});
+  const [timer, setTimer] = React.useState(null);
+
+  async function updateRates(clientBuyCurrency: string, clientSellCurrency: string, amount:number) {
+    try {
+      const result = await getRates(clientBuyCurrency, clientSellCurrency, amount);
+      setRates(result);
+      console.log('setting state - result is');
+      console.log(result);
+    }
+    catch(e) {
+      console.log('I am here 7');
+    }
+  };
+  
   const validationSchema = Yup.object().shape({
     clientBuyCurrency: Yup.string().required('Buy currency is required.'),
     clientSellCurrency: Yup.string().required('Sell currency is required.'),
     amount: Yup.number().min(1, "Minimum amount is 1.").required('Amount is required.'),
   });
+  
+  useEffect(() => {
+    console.log('useEffect called.  rates is');
+    console.log(rates);
 
+    if (rates.showResults) {
+          formik.values.showResults = true;
+          formik.values.rate = rates.rate;
+          formik.values.currencyPair = rates.currencyPair;
+        }
+
+  }, [rates]);
+  
   const formik = useFormik<RateRequest>({
     initialValues: {
       clientBuyCurrency: '', 
@@ -33,18 +94,24 @@ function App() {
       rate: 0,
     },
     validationSchema: validationSchema, 
-
+    
     onSubmit: async (values) => {
       try {
-        var r = await axios.get(`https://wnvgqqihv6.execute-api.ap-southeast-2.amazonaws.com/Public/public/rates?Buy=${formik.values.clientBuyCurrency}&Sell=${formik.values.clientSellCurrency}&Amount=${formik.values.amount}&Fixed=sell`);
-        if (r.data.clientRate) {
-          formik.values.showResults = true;
-          formik.values.rate = r.data.midMarketRate;
-          formik.values.currencyPair = r.data.currencyPair;
-        }
-        else {
-          console.log('Handle exception here.');
-        }
+        console.log('I am here 1 - calling updateRates');
+        await updateRates(formik.values.clientBuyCurrency, formik.values.clientSellCurrency, formik.values.amount);
+        console.log('I am here 2');
+        console.log(rates);
+        //var r = await getRates(formik.values.clientBuyCurrency, formik.values.clientSellCurrency, formik.values.amount);
+        
+        
+        // if (rates.showResults) {
+        //   formik.values.showResults = true;
+        //   formik.values.rate = rates.rate;
+        //   formik.values.currencyPair = rates.currencyPair;
+        // }
+        // else {
+        //   console.log('Handle exception here.');
+        // }
       }
       catch (e)
       {
@@ -53,7 +120,7 @@ function App() {
       }
     }
   });
-
+  
   return (
     <div className="App">
     <form onSubmit={formik.handleSubmit}>
@@ -66,7 +133,7 @@ function App() {
           error={formik.touched.amount && Boolean(formik.errors.amount)}
           style={{ width: 300 }}
           label="Amount"
-        /> 
+          /> 
         <br />
         <div className="ErrorMessage">
         { formik.touched.amount && formik.errors.amount }
