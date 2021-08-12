@@ -38,13 +38,8 @@ async function getRates(clientBuyCurrency: string, clientSellCurrency:string, am
       result.showResults = true;
       result.rate = r.data.midMarketRate;
       result.currencyPair = r.data.currencyPair;
-
-      console.log("results fetched " + result.rate);
     }
-    else {
-      console.log('Handle exception here.');
-    }
-
+    
   return result;
 }
 
@@ -52,18 +47,18 @@ async function getRates(clientBuyCurrency: string, clientSellCurrency:string, am
 function App() {
 
   const [rates, setRates] = React.useState<RateRequestResult>({rate: 0, currencyPair:'', showResults:false});
-  const [timer, setTimer] = React.useState(null);
+  const [timer, setTimer] = React.useState(0);
 
   async function updateRates(clientBuyCurrency: string, clientSellCurrency: string, amount:number) {
     try {
-      const result = await getRates(clientBuyCurrency, clientSellCurrency, amount);
+      const result = await getRates(formik.values.clientBuyCurrency, formik.values.clientSellCurrency, formik.values.amount);
       setRates(result);
-      console.log('setting state - result is');
-      console.log(result);
     }
     catch(e) {
-      console.log('I am here 7');
+      console.log('updateRates failed');
     }
+    clearTimeout(timer);
+    setTimer(setTimeout(updateRates, 1000))
   };
   
   const validationSchema = Yup.object().shape({
@@ -101,17 +96,6 @@ function App() {
         await updateRates(formik.values.clientBuyCurrency, formik.values.clientSellCurrency, formik.values.amount);
         console.log('I am here 2');
         console.log(rates);
-        //var r = await getRates(formik.values.clientBuyCurrency, formik.values.clientSellCurrency, formik.values.amount);
-        
-        
-        // if (rates.showResults) {
-        //   formik.values.showResults = true;
-        //   formik.values.rate = rates.rate;
-        //   formik.values.currencyPair = rates.currencyPair;
-        // }
-        // else {
-        //   console.log('Handle exception here.');
-        // }
       }
       catch (e)
       {
